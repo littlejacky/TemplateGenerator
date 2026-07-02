@@ -11,7 +11,7 @@ publish/
 
 # 忽略 Templates 文件夹下的所有具体模板文件
 # 但我们通过 !.gitkeep 确保文件夹本身会被提交到 GitHub
-Templates/*
+src/Templates/*
 !Templates/.gitkeep
 
 # 忽略个人配置文件

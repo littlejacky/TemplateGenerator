@@ -8,21 +8,39 @@ namespace TemplateGenerator.Cli
     {
         static void Main(string[] args)
         {
-            // 获取当前 .exe 所在的文件夹路径
-            // 这种方式无论在开发环境还是用户电脑上，都能精准定位到程序运行的目录
+            // 1. 默认路径：.exe 同级目录
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-
-            // 设置路径：Templates、project.json 和输出目录都在 .exe 的同级目录下
             string templateDir = Path.Combine(baseDir, "Templates");
-            string outputDir = Path.Combine(baseDir, "publish_output");
             string configFile = Path.Combine(baseDir, "project.json");
+            string outputDir = Path.Combine(baseDir, "publish_output");
+
+            // 2. 自适应自愈逻辑：如果在当前运行目录找不到，尝试向上逐级查找（最多5层）
+            // 完美兼容开发阶段的 dotnet run (此时文件在项目根目录，而 BaseDirectory 在 bin/Debug 下)
+            if (!Directory.Exists(templateDir) || !File.Exists(configFile))
+            {
+                string currentCheckDir = baseDir;
+                for (int i = 0; i < 5; i++)
+                {
+                    currentCheckDir = Path.GetDirectoryName(currentCheckDir);
+                    if (string.IsNullOrEmpty(currentCheckDir)) break;
+
+                    string candidateTemplateDir = Path.Combine(currentCheckDir, "Templates");
+                    string candidateConfigFile = Path.Combine(currentCheckDir, "project.json");
+
+                    if (Directory.Exists(candidateTemplateDir) && File.Exists(candidateConfigFile))
+                    {
+                        templateDir = candidateTemplateDir;
+                        configFile = candidateConfigFile;
+                        outputDir = Path.Combine(currentCheckDir, "publish_output");
+                        break; // 找到了开发环境的项目根目录，直接退出循环
+                    }
+                }
+            }
 
             // 初始化所有引擎
             var engine = new VariableEngine();
             var docxProcessor = new DocxProcessor(engine);
             var pptxProcessor = new PptxProcessor(engine);
-
-            // 传入处理器
             var pipeline = new DirectoryProcessor(engine, docxProcessor, pptxProcessor); 
 
             try
@@ -30,11 +48,11 @@ namespace TemplateGenerator.Cli
                 // 检查必要的文件和文件夹是否存在
                 if (!Directory.Exists(templateDir))
                 {
-                    throw new Exception($"找不到模板目录！请确保 .exe 同级目录下存在 'Templates' 文件夹。当前搜索路径: {templateDir}");
+                    throw new Exception($"找不到模板目录！当前搜索路径: {templateDir}");
                 }
                 if (!File.Exists(configFile))
                 {
-                    throw new Exception($"找不到配置文件！请确保 .exe 同级目录下存在 'project.json'。当前搜索路径: {configFile}");
+                    throw new Exception($"找不到配置文件！当前搜索路径: {configFile}");
                 }
 
                 pipeline.Process(templateDir, outputDir, configFile);
@@ -50,9 +68,16 @@ namespace TemplateGenerator.Cli
                 Console.ResetColor();
             }
 
-            // 如果是双击运行，防止窗口直接关闭，方便用户查看结果
-            Console.WriteLine("\n按任意键退出...");
-            Console.ReadKey();
+            // 3. 修复 Git Bash / MINGW64 环境下 dotnet run 报 ReadKey 异常的问题
+            if (!Console.IsInputRedirected)
+            {
+                Console.WriteLine("\n按任意键退出...");
+                Console.ReadKey();
+            }
+            else
+            {
+                Console.WriteLine("\n运行结束。");
+            }
         }
     }
 }
