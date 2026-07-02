@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TemplateGenerator.Cli/TemplateGenerator.Cli.csproj" />
+    <Project Path="src/TemplateGenerator.Core/TemplateGenerator.Core.csproj" />
+  </Folder>
+</Solution>
